@@ -508,12 +508,20 @@ DependencyScanningTool::getFullDependencies(
   if (Result)
     return std::move(Result);
 
-  return Consumer.getFullDependencies(CommandLine, FS);
+  Optional<cas::CASID> CASFileSystemRootID;
+  if (FS) {
+    if (auto Tree = FS->createTreeFromNewAccesses())
+      CASFileSystemRootID = Tree->getID();
+    else
+      return Tree.takeError();
+  }
+
+  return Consumer.getFullDependencies(CommandLine, CASFileSystemRootID);
 }
 
-Expected<FullDependenciesResult> FullDependencyConsumer::getFullDependencies(
+FullDependenciesResult FullDependencyConsumer::getFullDependencies(
     const std::vector<std::string> &OriginalCommandLine,
-    llvm::cas::CachingOnDiskFileSystem *FS) const {
+    Optional<cas::CASID> CASFileSystemRootID) const {
   FullDependencies FD;
 
   FD.OriginalCommandLine = ArrayRef<std::string>(OriginalCommandLine).slice(1);
@@ -530,12 +538,7 @@ Expected<FullDependenciesResult> FullDependencyConsumer::getFullDependencies(
 
   FD.PrebuiltModuleDeps = std::move(PrebuiltModuleDeps);
 
-  if (FS) {
-    if (auto Tree = FS->createTreeFromNewAccesses())
-      FD.CASFileSystemRootID = Tree->getID();
-    else
-      return Tree.takeError();
-  }
+  FD.CASFileSystemRootID = CASFileSystemRootID;
 
   FullDependenciesResult FDR;
 
