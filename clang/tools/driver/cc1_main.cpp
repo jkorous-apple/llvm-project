@@ -440,6 +440,8 @@ Optional<int> CompileJobCache::tryReplayCachedResult(CompilerInstance &Clang) {
     return 1;
   }
 
+  Clang.setCompileJobCacheKey(*ResultCacheKey);
+
   // Create an on-disk backend for streaming the results live if we run the
   // computation. If we're writing the output as a CASID, skip it here, since
   // it'll be handled during replay.
