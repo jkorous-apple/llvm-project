@@ -1739,7 +1739,8 @@ public:
                           const PCHContainerReader &PCHContainerRdr,
                           bool FindModuleFileExtensions,
                           ASTReaderListener &Listener,
-                          bool ValidateDiagnosticOptions);
+                          bool ValidateDiagnosticOptions,
+                          InMemoryModuleCache *ModuleCache = nullptr);
 
   /// Determine whether the given AST file is acceptable to load into a
   /// translation unit with the given language and target options.

@@ -5205,17 +5205,25 @@ bool ASTReader::readASTFileControlBlock(
     StringRef Filename, FileManager &FileMgr,
     const PCHContainerReader &PCHContainerRdr,
     bool FindModuleFileExtensions,
-    ASTReaderListener &Listener, bool ValidateDiagnosticOptions) {
+    ASTReaderListener &Listener, bool ValidateDiagnosticOptions,
+    InMemoryModuleCache *ModuleCache) {
   // Open the AST file.
-  // FIXME: This allows use of the VFS; we do not allow use of the
-  // VFS when actually loading a module.
-  auto Buffer = FileMgr.getBufferForFile(Filename);
+  std::unique_ptr<llvm::MemoryBuffer> OwnedBuffer;
+  llvm::MemoryBuffer *Buffer = nullptr;
+  if (ModuleCache)
+    Buffer = ModuleCache->lookupPCM(Filename);
   if (!Buffer) {
-    return true;
+    // FIXME: This allows use of the VFS; we do not allow use of the
+    // VFS when actually loading a module.
+    auto BufferOrErr = FileMgr.getBufferForFile(Filename);
+    if (!BufferOrErr)
+      return true;
+    OwnedBuffer = std::move(*BufferOrErr);
+    Buffer = OwnedBuffer.get();
   }
 
   // Initialize the stream
-  StringRef Bytes = PCHContainerRdr.ExtractPCH(**Buffer);
+  StringRef Bytes = PCHContainerRdr.ExtractPCH(*Buffer);
   BitstreamCursor Stream(Bytes);
 
   // Sniff for the signature.
@@ -5391,7 +5399,8 @@ bool ASTReader::readASTFileControlBlock(
         std::string Filename = ReadString(Record, Idx);
         ResolveImportedPath(Filename, ModuleDir);
         std::string CacheKey = ReadString(Record, Idx);
-        Listener.readModuleCacheKey(ModuleName, Filename, CacheKey);
+        if (!CacheKey.empty())
+          Listener.readModuleCacheKey(ModuleName, Filename, CacheKey);
         Listener.visitImport(ModuleName, Filename);
       }
       break;
