@@ -138,20 +138,20 @@ public:
 
   bool isTrackingAccess() const {
     std::lock_guard<std::mutex> Lock(TrackedAccessesMutex);
-    return TrackedAccesses ? true : false;
+    return !TrackedAccesses.empty();
   }
 
   void trackAccess(const DirectoryEntry &Entry) {
     std::lock_guard<std::mutex> Lock(TrackedAccessesMutex);
-    if (TrackedAccesses)
-      TrackedAccesses->insert(&Entry);
+    if (!TrackedAccesses.empty())
+      TrackedAccesses.back().insert(&Entry);
   }
 
 private:
   void initializeWorkingDirectory();
 
   // Cached stats. Useful for tracking everything that has been stat'ed.
-  Optional<DenseSet<const DirectoryEntry *>> TrackedAccesses;
+  SmallVector<DenseSet<const DirectoryEntry *>> TrackedAccesses;
   mutable std::mutex TrackedAccessesMutex;
 
   IntrusiveRefCntPtr<FileSystemCache> Cache;
@@ -629,10 +629,8 @@ static void pushEntryToBuilder(const ObjectStore &DB,
 
 void CachingOnDiskFileSystemImpl::trackNewAccesses() {
   std::lock_guard<std::mutex> Lock(TrackedAccessesMutex);
-  if (TrackedAccesses)
-    return;
-  TrackedAccesses.emplace();
-  TrackedAccesses->reserve(128); // Seed with a bit of runway.
+  TrackedAccesses.emplace_back();
+  TrackedAccesses.back().reserve(128); // Seed with a bit of runway.
 }
 
 Expected<ObjectProxy> CachingOnDiskFileSystemImpl::createTreeFromNewAccesses(
@@ -641,8 +639,8 @@ Expected<ObjectProxy> CachingOnDiskFileSystemImpl::createTreeFromNewAccesses(
   Optional<DenseSet<const DirectoryEntry *>> MaybeTrackedAccesses;
   {
     std::lock_guard<std::mutex> Lock(TrackedAccessesMutex);
-    MaybeTrackedAccesses = std::move(TrackedAccesses);
-    TrackedAccesses = None;
+    if (!TrackedAccesses.empty())
+      MaybeTrackedAccesses = TrackedAccesses.pop_back_val();
   }
 
   TreeSchema Schema(DB);
