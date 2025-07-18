@@ -166,7 +166,7 @@ static void emitDirectiveRelocJalr(const MachineInstr &MI,
         OutStreamer.emitRelocDirective(
             *OffsetExpr,
             Subtarget.inMicroMipsMode() ? "R_MICROMIPS_JALR" : "R_MIPS_JALR",
-            CaleeExpr);
+            CaleeExpr, SMLoc(), *TM.getMCSubtargetInfo());
         OutStreamer.emitLabel(OffsetLabel);
         return;
       }

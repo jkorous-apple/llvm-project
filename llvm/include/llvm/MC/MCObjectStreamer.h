@@ -40,6 +40,14 @@ class MCObjectStreamer : public MCStreamer {
   std::unique_ptr<MCAssembler> Assembler;
   bool EmitEHFrame;
   bool EmitDebugFrame;
+  struct PendingMCFixup {
+    const MCSymbol *Sym;
+    MCFixup Fixup;
+    MCFragment *DF;
+    PendingMCFixup(const MCSymbol *McSym, MCFragment *F, MCFixup McFixup)
+        : Sym(McSym), Fixup(McFixup), DF(F) {}
+  };
+  SmallVector<PendingMCFixup, 2> PendingFixups;
 
   struct PendingAssignment {
     MCSymbol *Symbol;
@@ -55,6 +63,7 @@ class MCObjectStreamer : public MCStreamer {
   void emitCFIStartProcImpl(MCDwarfFrameInfo &Frame) override;
   void emitCFIEndProcImpl(MCDwarfFrameInfo &Frame) override;
   void emitInstructionImpl(const MCInst &Inst, const MCSubtargetInfo &STI);
+  void resolvePendingFixups();
 
 protected:
   MCObjectStreamer(MCContext &Context, std::unique_ptr<MCAsmBackend> TAB,
@@ -153,8 +162,9 @@ public:
   void emitCVStringTableDirective() override;
   void emitCVFileChecksumsDirective() override;
   void emitCVFileChecksumOffsetDirective(unsigned FileNo) override;
-  void emitRelocDirective(const MCExpr &Offset, StringRef Name,
-                          const MCExpr *Expr, SMLoc Loc = {}) override;
+  std::optional<std::pair<bool, std::string>>
+  emitRelocDirective(const MCExpr &Offset, StringRef Name, const MCExpr *Expr,
+                     SMLoc Loc, const MCSubtargetInfo &STI) override;
   using MCStreamer::emitFill;
   void emitFill(const MCExpr &NumBytes, uint64_t FillValue,
                 SMLoc Loc = SMLoc()) override;

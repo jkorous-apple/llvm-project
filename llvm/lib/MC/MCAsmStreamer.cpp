@@ -407,8 +407,9 @@ public:
                        const MCPseudoProbeInlineStack &InlineStack,
                        MCSymbol *FnSym) override;
 
-  void emitRelocDirective(const MCExpr &Offset, StringRef Name,
-                          const MCExpr *Expr, SMLoc Loc) override;
+  std::optional<std::pair<bool, std::string>>
+  emitRelocDirective(const MCExpr &Offset, StringRef Name, const MCExpr *Expr,
+                     SMLoc Loc, const MCSubtargetInfo &STI) override;
 
   void emitAddrsig() override;
   void emitAddrsigSym(const MCSymbol *Sym) override;
@@ -2467,8 +2468,10 @@ void MCAsmStreamer::emitPseudoProbe(uint64_t Guid, uint64_t Index,
   EmitEOL();
 }
 
-void MCAsmStreamer::emitRelocDirective(const MCExpr &Offset, StringRef Name,
-                                       const MCExpr *Expr, SMLoc) {
+std::optional<std::pair<bool, std::string>>
+MCAsmStreamer::emitRelocDirective(const MCExpr &Offset, StringRef Name,
+                                  const MCExpr *Expr, SMLoc,
+                                  const MCSubtargetInfo &STI) {
   OS << "\t.reloc ";
   MAI->printExpr(OS, Offset);
   OS << ", " << Name;
@@ -2477,6 +2480,7 @@ void MCAsmStreamer::emitRelocDirective(const MCExpr &Offset, StringRef Name,
     MAI->printExpr(OS, *Expr);
   }
   EmitEOL();
+  return std::nullopt;
 }
 
 void MCAsmStreamer::emitAddrsig() {

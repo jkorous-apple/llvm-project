@@ -559,7 +559,8 @@ void AArch64TargetELFStreamer::finish() {
     if (!Sym.isMemtag())
       continue;
     auto *SRE = MCSymbolRefExpr::create(&Sym, Ctx);
-    S.emitRelocDirective(*Zero, "BFD_RELOC_NONE", SRE);
+    (void)S.emitRelocDirective(*Zero, "BFD_RELOC_NONE", SRE, SMLoc(),
+                               *Ctx.getSubtargetInfo());
   }
 }
 
